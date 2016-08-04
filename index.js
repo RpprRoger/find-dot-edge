@@ -4,11 +4,20 @@ var savePixels = require('save-pixels');
 var fs = require('fs');
 
 var tmp = fs.createWriteStream('tmp.jpg');
+var removeOutliers = require('./remove-outliers');
 
 var srcFile = 'src.jpg';
+var acceptablePercentage = 50;
 
 function intBlack(i) {
     return i < 100;
+}
+
+function setColour(pixels, x, y, colour) {
+    pixels.set(x, y, 0, colour.red || 0);
+    pixels.set(x, y, 1, colour.green || 0);
+    pixels.set(x, y, 2, colour.blue || 0);
+    pixels.set(x, y, 3, colour.alpha || 255);
 }
 
 function processImage(imgPath) {
@@ -41,27 +50,30 @@ function processImage(imgPath) {
         var width = pixels.shape[0];
         var height = pixels.shape[1];
 
-        var top = [];
+        var top = {};
 
         for (var x = 0; x < width; x++) {
             let y = dropY(x, height);
             if (y !== -1) {
-                pixels.set(x, y, 0, 255);
-                pixels.set(x, y, 1, 0);
-                pixels.set(x, y, 2, 0);
-                pixels.set(x, y, 3, 0);
-            }
-        }
-        for (var y = 0; y < height; y++) {
-            let x = dropX(y, width);
-            if (x !== -1) {
-                pixels.set(x, y, 0, 255);
-                pixels.set(x, y, 1, 0);
-                pixels.set(x, y, 2, 0);
-                pixels.set(x, y, 3, 0);
+                top[x] = y;
             }
         }
 
+        top = removeOutliers(top, acceptablePercentage);
+
+        Object.keys(top).forEach(function(x) {
+            setColour(pixels, x, top[x], {red: 255});
+        });
+
+        // for (var y = 0; y < height; y++) {
+        //     let x = dropX(y, width);
+        //     if (x !== -1) {
+        //         setColour(pixels, x, y, {red: 255});
+        //     }
+        // }
+
+
+        fs.writeFileSync('tmp.json', JSON.stringify(top, null, '\t'));
         savePixels(pixels, 'jpeg').pipe(tmp);
 
     });
