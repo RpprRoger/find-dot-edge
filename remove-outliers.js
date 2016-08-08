@@ -7,41 +7,52 @@ function sortEntries(entryA, entryB) {
     return entryA.percentage < entryB.percentage ? 1 : 0;
 }
 
-module.exports = function removeOutliers(obj, acceptablePercentage) {
+module.exports = function removeOutliers(arrayOfPoints, acceptablePercentage, targetAxis) {
     var cum = {};
-    var total = 0;
-    var list = [];
+    var total = arrayOfPoints.length;
+
+    targetAxis = targetAxis || 'y';
 
     // this will make an entry that will store the x, y data and track how many of each value there is
-    function makeEntry(key, value) {
+    function makeEntry(x, y, i) {
+        var value, key;
+
+        if (targetAxis === 'y') {
+            key = x;
+            value = y;
+        } else {
+            value = x;
+            key = y;
+        }
+
         cum[value] = cum[value] || {
+            // keep the keys and value data so we can re-inflate the array of points later
             keys: [],
             count: 0,
             value: value
         };
-        ++cum[value].count;
-        total++;
-        cum[value].keys.push(key);
+
+        cum[value].percentage = (++cum[value].count / total) * 100;
+        cum[value].keys.push({k: key, i: i});
     }
 
     // collect values, and store away with the keys they were at
-    Object.keys(obj).forEach(function(key) {
-        makeEntry(key, obj[key]);
+    arrayOfPoints.forEach(function(xy, i) {
+        makeEntry(xy[0], xy[1], i);
     });
 
-    Object.keys(cum).forEach(function(value) {
-        var obj = cum[value];
-        obj.percentage = (obj.count / total) * 100;
-
-        list.push(obj);
+    //
+    var list = Object.keys(cum).map(function(key) {
+        return cum[key];
     });
 
     list.sort(sortEntries);
 
     var runningPercentageTotal = 0;
-    var output = {};
+    var output = [];
     var listLength = list.length;
     var cur;
+    var otherAxis;
     var keysLength;
     var i;
     var j;
@@ -50,12 +61,18 @@ module.exports = function removeOutliers(obj, acceptablePercentage) {
         cur = list[i];
         keysLength = cur.keys.length;
         for (j = 0; j < keysLength; j++) {
-            output[cur.keys[j]] = cur.value;
+            otherAxis = cur.keys[j];
+            // re-insert them into the output at the original indexes
+            if (targetAxis === 'y') {
+                output[otherAxis.i] = [otherAxis.k, cur.value];
+            } else {
+                output[otherAxis.i] = [cur.value, otherAxis.k];
+            }
         }
         runningPercentageTotal += cur.percentage;
-
         if (runningPercentageTotal >= acceptablePercentage) {
-            return output;
+            // filter out the undefined values in the array
+            return output.filter(Boolean);
         }
     }
 }

@@ -11,6 +11,10 @@
   "devDependencies": {},
   "dependencies": {
     "get-pixels": "^3.3.0",
-    "save-pixels": "^2.3.3"
+    "image-rotate": "^1.0.0",
+    "luminance": "^1.0.3",
+    "regression": "^1.2.1",
+    "save-pixels": "^2.3.3",
+    "zeros": "^1.0.0"
   }
 }
